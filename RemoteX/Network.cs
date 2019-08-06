@@ -3,7 +3,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace RemoteX
 {
@@ -38,6 +40,7 @@ namespace RemoteX
         {
             try
             {
+                
                 Debug.WriteLine("Listening......");
                 G_socket = G_listener.AcceptSocket();                
             }
@@ -64,6 +67,7 @@ namespace RemoteX
                 else
                 {
                     crypt_WriteLine("connected");
+                    check_isalive();
                     Start_Recieving();
                 }
             }
@@ -160,6 +164,39 @@ namespace RemoteX
 
         }
 
+            private async void check_isalive()
+        {
+            int udp_port = 2600;
+            UdpClient udp_reciever = new UdpClient(udp_port);
+            UdpClient udp_sender = new UdpClient(udp_port + 1);
+
+            while (true)
+            {
+
+
+                String remote_ip = G_socket.RemoteEndPoint.ToString().Split(':')[0];
+                    Debug.WriteLine("isalive " + remote_ip);
+                //udp_reciever.BeginReceive(onUDP_Recieve, udp_reciever);
+               udp_sender.Send(Encoding.ASCII.GetBytes("Hi!"), 3, remote_ip, udp_port);
+
+                await Task.Delay(3000);
+            }
+        }
+
+        private static void onUDP_Recieve(IAsyncResult ar)
+        {
+            UdpClient c = (UdpClient)ar.AsyncState;
+            IPEndPoint receivedIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
+
+            Byte[] receivedBytes = c.EndReceive(ar, ref receivedIpEndPoint);
+
+            // Convert data to ASCII and print in console
+            string receivedText = ASCIIEncoding.ASCII.GetString(receivedBytes);
+            Debug.WriteLine(receivedIpEndPoint + ": " + receivedText + Environment.NewLine);
+
+            // Restart listening for udp data packages
+            c.BeginReceive(onUDP_Recieve, ar.AsyncState);
+        }
 
         public void disconnect_network()
         {
