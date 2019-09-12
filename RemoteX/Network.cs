@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -39,8 +40,7 @@ namespace RemoteX
         private void acceptingsockets()
         {
             try
-            {
-                
+            {                
                 Debug.WriteLine("Listening......");
                 G_socket = G_listener.AcceptSocket();                
             }
@@ -67,7 +67,6 @@ namespace RemoteX
                 else
                 {
                     crypt_WriteLine("connected");
-                    check_isalive();
                     Start_Recieving();
                 }
             }
@@ -164,38 +163,77 @@ namespace RemoteX
 
         }
 
-            private async void check_isalive()
+        private async void send_udp_broadcast()
         {
-            int udp_port = 2600;
-            UdpClient udp_reciever = new UdpClient(udp_port);
-            UdpClient udp_sender = new UdpClient(udp_port + 1);
-
+            UdpClient client = new UdpClient();
+            IPEndPoint ip = new IPEndPoint(IPAddress.Parse("192.168.100.7"), 2600);
+            Debug.WriteLine(IPAddress.Broadcast.ToString());
             while (true)
             {
 
-
-                String remote_ip = G_socket.RemoteEndPoint.ToString().Split(':')[0];
-                    Debug.WriteLine("isalive " + remote_ip);
-                //udp_reciever.BeginReceive(onUDP_Recieve, udp_reciever);
-               udp_sender.Send(Encoding.ASCII.GetBytes("Hi!"), 3, remote_ip, udp_port);
-
-                await Task.Delay(3000);
+                byte[] bytes = Encoding.ASCII.GetBytes("self_broadcast");
+                client.Send(bytes, bytes.Length, ip);
+                Debug.WriteLine("koi mai ka laal ");
+                await Task.Delay(2000);
             }
+            client.Close();
         }
 
-        private static void onUDP_Recieve(IAsyncResult ar)
+            private async void check_isalive()
         {
-            UdpClient c = (UdpClient)ar.AsyncState;
-            IPEndPoint receivedIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
+            Debug.WriteLine("check is alive starts loop");
 
-            Byte[] receivedBytes = c.EndReceive(ar, ref receivedIpEndPoint);
 
-            // Convert data to ASCII and print in console
-            string receivedText = ASCIIEncoding.ASCII.GetString(receivedBytes);
-            Debug.WriteLine(receivedIpEndPoint + ": " + receivedText + Environment.NewLine);
+            int udp_port = 2600;
+            UdpClient udp_reciever = new UdpClient(udp_port);
+            udp_reciever.Client.ReceiveTimeout = 1000;
+            IPEndPoint IPendpoint = new IPEndPoint(IPAddress.Any, udp_port);
+            int recieved_count = 0;
 
-            // Restart listening for udp data packages
-            c.BeginReceive(onUDP_Recieve, ar.AsyncState);
+            while (true)
+            {
+                Debug.WriteLine("check is alive");
+                if (G_socket!=null && G_socket.Connected)
+                {
+                    try
+                    {
+                        String msg = "";
+                        byte[] msg_bytes = udp_reciever.Receive(ref IPendpoint);
+                        Debug.WriteLine(IPendpoint.ToString());
+                        send_udp_broadcast();
+                        msg = Encoding.ASCII.GetString(msg_bytes, 0, msg_bytes.Length);
+                        Debug.WriteLine(msg);
+                        if(msg.Contains("IamAlive"))
+                        {
+                            recieved_count = 0;
+                        }
+                        else if (msg.Contains("self_broadcast"))
+                        {
+                            // do nothing
+                        }
+                        else
+                        {
+                            throw new System.InvalidOperationException("No message Recieved");
+                        }   
+
+                        Debug.WriteLine(msg + " " + msg.Length);
+                    }
+                    catch (Exception e)
+                    {
+                        recieved_count -= 1;
+                        Debug.WriteLine("udprecieve error " + e.Message);
+                    }
+
+                    if (recieved_count <-1)
+                    {
+                        //disconnect_network();
+                        recieved_count = 0;
+                    }
+
+                }
+                await Task.Delay(3000);
+            }
+            Debug.WriteLine("check is alive ends loop");
         }
 
         public void disconnect_network()
@@ -263,16 +301,38 @@ namespace RemoteX
         //get local ip address
         public string getlocalip()
         {
-            IPHostEntry host;
+            IPAddress[] host;
             string localIP = "?";
-            host = Dns.GetHostEntry(Dns.GetHostName());
+            host = Dns.GetHostAddresses(Dns.GetHostName());
 
-            foreach (IPAddress ip in host.AddressList)
+            //if(G_socket!=null)
+            //Debug.WriteLine(G_socket.LocalEndPoint.ToString());
+            
+            //foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            //{
+            //    //Debug.WriteLine(nic.Name);
+            //    foreach (UnicastIPAddressInformation ip in nic.GetIPProperties().UnicastAddresses)
+            //    {
+            //        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+            //        {
+            //            //Debug.WriteLine(ip.Address.ToString());
+            //            if ( ip.Address.AddressFamily == AddressFamily.InterNetwork)
+            //            {
+            //                Debug.WriteLine(ip.Address.ToString());
+            //                //return ip.Address.ToString();
+            //            } 
+            //        }
+            //    }
+            //}
+
+
+            foreach (IPAddress ip in host)
             {
 
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                if (ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
                 {
                     localIP = ip.ToString();
+                   // Debug.WriteLine(localIP);
                 }
             }
             return localIP;

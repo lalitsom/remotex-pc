@@ -70,7 +70,8 @@ namespace RemoteX
 
             refreshUI();
             initializeSystemInfo();
-
+            //check_isalive();
+            send_udp_broadcast();
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -164,16 +165,7 @@ namespace RemoteX
             while (true)
             {
                 Debug.WriteLine("refreshing ");
-                if (G_socket != null)
-                {
-                    //checked if still connected to remote
-                    bool cn = check_connectivity();
-                    if (cn)
-                    {
-                        disconnect_network();
-                    }
-                }
-
+    
                 if (G_disconnect)
                 {
                     disconnect_network();
@@ -224,11 +216,6 @@ namespace RemoteX
         }
 
 
-        private bool check_connectivity()
-        {
-            return G_socket.Poll(10, SelectMode.SelectRead);
-            
-        }
         private void Disconnect_button_Click(object sender, RoutedEventArgs e)
         {
             G_disconnect = true;
