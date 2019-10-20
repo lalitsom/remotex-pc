@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace RemoteX
 {
@@ -163,23 +164,70 @@ namespace RemoteX
 
         }
 
+
+
+        public static IPAddress GetBroadcastAddress(IPAddress address, IPAddress subnetMask)
+        {
+            byte[] ipAdressBytes = address.GetAddressBytes();
+            byte[] subnetMaskBytes = subnetMask.GetAddressBytes();
+
+            if (ipAdressBytes.Length != subnetMaskBytes.Length)
+                throw new ArgumentException("Lengths of IP address and subnet mask do not match.");
+
+            byte[] broadcastAddress = new byte[ipAdressBytes.Length];
+            for (int i = 0; i < broadcastAddress.Length; i++)
+            {
+                broadcastAddress[i] = (byte)(ipAdressBytes[i] | (subnetMaskBytes[i] ^ 255));
+            }
+            return new IPAddress(broadcastAddress);
+        }
+
+
+
         private async void send_udp_broadcast()
         {
             UdpClient client = new UdpClient();
-            IPEndPoint ip = new IPEndPoint(IPAddress.Parse("192.168.100.7"), 2600);
-            Debug.WriteLine(IPAddress.Broadcast.ToString());
+            UnicastIPAddressInformation uni_info = getlocalip();
+            IPAddress broad_ip = GetBroadcastAddress(uni_info.Address, uni_info.IPv4Mask );
+            IPEndPoint ip = new IPEndPoint(broad_ip, 2601);
             while (true)
             {
-
                 byte[] bytes = Encoding.ASCII.GetBytes("self_broadcast");
                 client.Send(bytes, bytes.Length, ip);
-                Debug.WriteLine("koi mai ka laal ");
+                Debug.WriteLine("koi mai ka laal " + broad_ip.ToString());
                 await Task.Delay(2000);
             }
             client.Close();
         }
+        
 
-            private async void check_isalive()
+
+        private async void receive_udp_broadcast()
+        {
+
+            Debug.WriteLine("Start recieivng");
+            int PORT = 2600;
+            UdpClient udpClient = new UdpClient();
+            udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, PORT));
+
+            var from = new IPEndPoint(0, 0);
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    var recvBuffer = udpClient.Receive(ref from);
+                    Debug.WriteLine("recieved " + Encoding.UTF8.GetString(recvBuffer));
+                }
+            });
+
+        }
+       
+
+
+
+
+
+        private async void check_isalive()
         {
             Debug.WriteLine("check is alive starts loop");
 
@@ -298,43 +346,37 @@ namespace RemoteX
             Debug.WriteLine("Disconneted");
         }
 
+
+
+
+
         //get local ip address
-        public string getlocalip()
+        public UnicastIPAddressInformation getlocalip()
         {
             IPAddress[] host;
-            string localIP = "?";
+            UnicastIPAddressInformation localIP = null;
             host = Dns.GetHostAddresses(Dns.GetHostName());
 
             //if(G_socket!=null)
             //Debug.WriteLine(G_socket.LocalEndPoint.ToString());
-            
-            //foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
-            //{
-            //    //Debug.WriteLine(nic.Name);
-            //    foreach (UnicastIPAddressInformation ip in nic.GetIPProperties().UnicastAddresses)
-            //    {
-            //        if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-            //        {
-            //            //Debug.WriteLine(ip.Address.ToString());
-            //            if ( ip.Address.AddressFamily == AddressFamily.InterNetwork)
-            //            {
-            //                Debug.WriteLine(ip.Address.ToString());
-            //                //return ip.Address.ToString();
-            //            } 
-            //        }
-            //    }
-            //}
 
-
-            foreach (IPAddress ip in host)
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
-
-                if (ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                //Debug.WriteLine(nic.Name);
+                foreach (UnicastIPAddressInformation IP_info in nic.GetIPProperties().UnicastAddresses)
                 {
-                    localIP = ip.ToString();
-                   // Debug.WriteLine(localIP);
+                    if (IP_info.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        //Debug.WriteLine(ip.Address.ToString());
+                        if (!IPAddress.IsLoopback(IP_info.Address) && host.Contains(IP_info.Address)
+                            && !nic.Name.ToLower().Contains("loopback") )                            
+                        {
+                            localIP = IP_info;
+                        }
+                    }
                 }
             }
+
             return localIP;
         }
     }
