@@ -72,7 +72,7 @@ namespace RemoteX
             initializeSystemInfo();
             //check_isalive();
             send_udp_broadcast();
-            receive_udp_broadcast();
+            //receive_udp_broadcast();
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -177,7 +177,7 @@ namespace RemoteX
                     start_thread();
                 }
                 G_pcname = Dns.GetHostName();
-                G_pcIP = getlocalip().Address.ToString();
+                G_pcIP = getlocalip();
                 PCName_text.Text = "PC Name : " + G_pcname;
                 hostIP_text.Text = "IP Address : " + G_pcIP;
 
