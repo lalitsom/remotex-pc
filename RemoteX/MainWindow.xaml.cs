@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Windows;
@@ -69,7 +68,7 @@ namespace RemoteX
 
 
             refreshUI();
-            initializeSystemInfo();            
+            initializeSystemInfo();
             send_udp_broadcast();
             check_isalive();
             //receive_udp_broadcast();
@@ -118,7 +117,7 @@ namespace RemoteX
 
         private void Refresh_button_Click(object sender, RoutedEventArgs e)
         {
-            //refreshUI();         
+            refreshUI();         
             // it is automatic after every 2 seconds
         }
 
@@ -166,15 +165,9 @@ namespace RemoteX
             while (true)
             {
                 Debug.WriteLine("refreshing ");
-    
-                if (G_disconnect)
+                if (G_Listener_thread==null || !G_Listener_thread.IsAlive)
                 {
-                    Debug.WriteLine("disconnect from refresh");
-                    disconnect_network();
-                }
-                if (!G_threadrunning)
-                {
-                    G_threadrunning = true;
+                    Debug.WriteLine("starting thread ");
                     start_thread();
                 }
                 G_pcname = Dns.GetHostName();
@@ -184,7 +177,7 @@ namespace RemoteX
 
                 try
                 {
-
+                    Debug.WriteLine("Update connect status");
                     if (G_socket != null)
                     {
                         IPEndPoint socket_endpoint = (IPEndPoint)G_socket.RemoteEndPoint;
@@ -220,28 +213,28 @@ namespace RemoteX
 
         private void Disconnect_button_Click(object sender, RoutedEventArgs e)
         {
-            G_disconnect = true;
             disconnect_network();
         }
 
         private void Heading_text_Click(object sender, RoutedEventArgs e)
         {
-                show_settings_wndw();
+            show_settings_wndw();
         }
 
         private void show_settings_wndw()
-        {            
+        {
             try
             {
                 subWindow.Show();
-            }catch(Exception e)
+            }
+            catch (Exception e)
             {
                 Debug.WriteLine("error " + e);
                 subWindow = new Settings();
                 subWindow.Show();
-                
+
             }
-            
+
         }
     }
 }

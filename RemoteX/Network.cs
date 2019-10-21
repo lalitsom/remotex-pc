@@ -13,10 +13,8 @@ namespace RemoteX
 {
     public partial class MainWindow
     {
-        public Boolean G_threadrunning = false;
         public string G_pcname = "", G_pcIP = "", G_remotename = "", G_remoteip = "";
 
-        public Boolean G_disconnect = false;
         static TcpListener G_listener;
         public NetworkStream G_stream;
         public StreamReader G_streamreader;
@@ -32,18 +30,18 @@ namespace RemoteX
                 G_Listener_thread = new Thread(new ThreadStart(acceptingsockets));
                 G_Listener_thread.Start();
             }
-            catch (Exception f)
+            catch (Exception e)
             {
-                Debug.WriteLine(f.Message);
+                Debug.WriteLine(e.Message);
             }
         }
 
         private void acceptingsockets()
         {
             try
-            {                
+            {
                 Debug.WriteLine("Listening......");
-                G_socket = G_listener.AcceptSocket();                
+                G_socket = G_listener.AcceptSocket();
             }
             catch (Exception f)
             {
@@ -78,8 +76,7 @@ namespace RemoteX
 
             try
             {
-                G_disconnect = true;
-                Debug.WriteLine("accepting socket disconnect netowrk");
+                Debug.WriteLine("not valid string found... disconnecting");
                 disconnect_network();
 
             }
@@ -96,12 +93,7 @@ namespace RemoteX
             String networkmessage = "";
             while (true) // keep listening for messages until disconnects
             {
-                
-                if (G_disconnect)
-                {
-                    disconnect_network();
-                    break;
-                }
+
                 Debug.WriteLine("Waiting for msg....");
 
                 networkmessage = crypt_ReadLine();
@@ -162,6 +154,7 @@ namespace RemoteX
             //something wrongoccured
             Debug.WriteLine("while loop ends please");
             crypt_WriteLine("Disconnect");
+            disconnect_network();
 
         }
 
@@ -186,9 +179,9 @@ namespace RemoteX
 
 
         private async void send_udp_broadcast()
-        {            
+        {
             while (true)
-            {                
+            {
                 try
                 {
                     UdpClient client = new UdpClient();
@@ -200,9 +193,9 @@ namespace RemoteX
                         byte[] bytes = Encoding.ASCII.GetBytes(G_pcname);
                         client.Send(bytes, bytes.Length, ip);
                         Debug.WriteLine("sending to broadcast ip " + broad_ip.ToString());
-                    }                                
+                    }
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Debug.WriteLine(" Sending udp broadcast failed at " + e.Message);
                 }
@@ -210,14 +203,14 @@ namespace RemoteX
                 {
                     await Task.Delay(2000);
                 }
-                
+
             }
         }
-        
+
         public String getlocalip()
         {
             String localip = "?";
-            UnicastIPAddressInformation ip =  get_unicast_info();
+            UnicastIPAddressInformation ip = get_unicast_info();
             if (ip != null)
             {
                 localip = ip.Address.ToString();
@@ -341,7 +334,7 @@ namespace RemoteX
             {
                 Debug.WriteLine(e);
             }
-            
+
             try
             {
                 G_socket.Shutdown(SocketShutdown.Both);
@@ -357,16 +350,16 @@ namespace RemoteX
 
             try
             {
+                Debug.WriteLine("Aborting thread");
                 G_Listener_thread.Abort();
+                if(!G_Listener_thread.IsAlive)
+                Debug.WriteLine("Aborted thread");
 
             }
             catch (Exception e)
             {
                 Debug.WriteLine(e);
             }
-
-            G_threadrunning = false;
-            G_disconnect = false;
             Debug.WriteLine("Disconneted");
         }
 
@@ -391,7 +384,7 @@ namespace RemoteX
                     if (IP_info.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
                     {
                         if (!IPAddress.IsLoopback(IP_info.Address) && host.Contains(IP_info.Address)
-                            && !nic.Name.ToLower().Contains("loopback") )                            
+                            && !nic.Name.ToLower().Contains("loopback"))
                         {
                             localIP = IP_info;
                         }
