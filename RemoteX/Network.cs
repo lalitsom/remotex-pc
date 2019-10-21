@@ -79,6 +79,7 @@ namespace RemoteX
             try
             {
                 G_disconnect = true;
+                Debug.WriteLine("accepting socket disconnect netowrk");
                 disconnect_network();
 
             }
@@ -207,7 +208,7 @@ namespace RemoteX
                 }
                 finally
                 {
-                    await Task.Delay(2500);
+                    await Task.Delay(2000);
                 }
                 
             }
@@ -243,68 +244,69 @@ namespace RemoteX
         //    });
 
         //}
-       
 
 
 
 
 
-        //private async void check_isalive()
-        //{
-        //    Debug.WriteLine("check is alive starts loop");
+
+        private async void check_isalive()
+        {
+            Debug.WriteLine("check is alive starts loop");
 
 
-        //    int udp_port = 2600;
-        //    UdpClient udp_reciever = new UdpClient(udp_port);
-        //    udp_reciever.Client.ReceiveTimeout = 1000;
-        //    IPEndPoint IPendpoint = new IPEndPoint(IPAddress.Any, udp_port);
-        //    int recieved_count = 0;
+            int udp_port = 2600;
+            UdpClient udp_reciever = new UdpClient(udp_port);
+            udp_reciever.Client.ReceiveTimeout = 2000;
+            IPEndPoint IPendpoint = new IPEndPoint(IPAddress.Any, udp_port);
+            int recieved_count = 0;
 
-        //    while (true)
-        //    {
-        //        Debug.WriteLine("check is alive");
-        //        if (G_socket!=null && G_socket.Connected)
-        //        {
-        //            try
-        //            {
-        //                String msg = "";
-        //                byte[] msg_bytes = udp_reciever.Receive(ref IPendpoint);
-        //                Debug.WriteLine(IPendpoint.ToString());
-        //                send_udp_broadcast();
-        //                msg = Encoding.ASCII.GetString(msg_bytes, 0, msg_bytes.Length);
-        //                Debug.WriteLine(msg);
-        //                if(msg.Contains("IamAlive"))
-        //                {
-        //                    recieved_count = 0;
-        //                }
-        //                else if (msg.Contains("self_broadcast"))
-        //                {
-        //                    // do nothing
-        //                }
-        //                else
-        //                {
-        //                    throw new System.InvalidOperationException("No message Recieved");
-        //                }   
+            while (true)
+            {
+                if (G_socket != null && G_socket.Connected)
+                {
+                    try
+                    {
+                        String msg = "";
+                        byte[] msg_bytes = udp_reciever.Receive(ref IPendpoint);
+                        IPAddress sender = IPendpoint.Address;
+                        IPAddress client = ((IPEndPoint)G_socket.RemoteEndPoint).Address;
+                        Debug.WriteLine(IPendpoint.ToString());
+                        msg = Encoding.ASCII.GetString(msg_bytes, 0, msg_bytes.Length);
+                        if (msg.Contains("IamAlive") && sender.Equals(client))
+                        {
+                            Debug.WriteLine("matched");
+                            recieved_count = 0;
+                        }
+                        else
+                        {
+                            throw new System.InvalidOperationException("No message Recieved");
+                        }
 
-        //                Debug.WriteLine(msg + " " + msg.Length);
-        //            }
-        //            catch (Exception e)
-        //            {
-        //                recieved_count -= 1;
-        //                Debug.WriteLine("udprecieve error " + e.Message);
-        //            }
+                        Debug.WriteLine(msg + " " + msg.Length);
+                    }
+                    catch (Exception e)
+                    {
+                        recieved_count -= 1;
+                        Debug.WriteLine("udprecieve error " + e.Message);
+                    }
 
-        //            if (recieved_count <-1)
-        //            {
-        //                //disconnect_network();
-        //                recieved_count = 0;
-        //            }
+                    if (recieved_count < -2)
+                    {
+                        Debug.WriteLine("count " + recieved_count);
+                        disconnect_network();
+                        recieved_count = 0;
+                    }
 
-        //        }
-        //        await Task.Delay(3000);
-        //    }
-        //    Debug.WriteLine("check is alive ends loop");
-        //}
+                }
+                else
+                {
+                    recieved_count = 0;
+                }
+                await Task.Delay(30);
+            }
+            Debug.WriteLine("check is alive ends loop");
+        }
 
         public void disconnect_network()
         {

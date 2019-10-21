@@ -69,9 +69,9 @@ namespace RemoteX
 
 
             refreshUI();
-            initializeSystemInfo();
-            //check_isalive();
+            initializeSystemInfo();            
             send_udp_broadcast();
+            check_isalive();
             //receive_udp_broadcast();
         }
 
@@ -169,6 +169,7 @@ namespace RemoteX
     
                 if (G_disconnect)
                 {
+                    Debug.WriteLine("disconnect from refresh");
                     disconnect_network();
                 }
                 if (!G_threadrunning)
